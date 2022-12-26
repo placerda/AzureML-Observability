@@ -72,6 +72,7 @@ user_defined_conda_file=None,drift_analysis_job_file=None,job_cron_schedule=None
         content = """
 from obs.drift.drift_analysis_kusto import Drift_Analysis_User
 from obs.collector import Online_Collector
+from azure.kusto.data.exceptions import KustoApiError
 import calendar;
 import time;
 import argparse
@@ -119,7 +120,8 @@ def main(args):
             if last_run.shape[0]>0:
                 target_dt_from = max(last_run["target_end_date"])
                 target_dt_to= pd.date_range(target_dt_from,periods=2).format()[-1]
-        except azure.kusto.data.exceptions.KustoApiError err:
+        except KustoApiError as err:
+            print(err)
             print("running for the first time, table created")
 
     df_output, drift_result = drift_analysis.analyze_drift(limit=args.limit,base_table_name = args.base_table_name,target_table_name=args.target_table_name, base_dt_from=args.base_dt_from, base_dt_to=args.base_dt_to, target_dt_from=target_dt_from, target_dt_to=target_dt_to, bin=args.bin, concurrent_run=args.concurrent_run, drift_threshold = args.drift_threshold)
