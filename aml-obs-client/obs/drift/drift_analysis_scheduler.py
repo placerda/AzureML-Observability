@@ -114,10 +114,14 @@ def main(args):
     target_dt_from = args.target_dt_from
     target_dt_to= args.target_dt_to
     if args.target_dt_shift_step_size != "None":
-        last_run = drift_analysis.query("let last_run_id = "+args.drift_result_table+"|where run_id like '"+run_prefix+"'| summarize max_run = max(run_id); "+args.drift_result_table+"|where run_id == toscalar(last_run_id)")     
-        if last_run.shape[0]>0:
-            target_dt_from = max(last_run["target_end_date"])
-            target_dt_to= pd.date_range(target_dt_from,periods=2).format()[-1]
+        try:
+            last_run = drift_analysis.query("let last_run_id = "+args.drift_result_table+"|where run_id like '"+run_prefix+"'| summarize max_run = max(run_id); "+args.drift_result_table+"|where run_id == toscalar(last_run_id)")     
+            if last_run.shape[0]>0:
+                target_dt_from = max(last_run["target_end_date"])
+                target_dt_to= pd.date_range(target_dt_from,periods=2).format()[-1]
+        except azure.kusto.data.exceptions.KustoApiError err:
+            print("running for the first time, table created")
+
     df_output, drift_result = drift_analysis.analyze_drift(limit=args.limit,base_table_name = args.base_table_name,target_table_name=args.target_table_name, base_dt_from=args.base_dt_from, base_dt_to=args.base_dt_to, target_dt_from=target_dt_from, target_dt_to=target_dt_to, bin=args.bin, concurrent_run=args.concurrent_run, drift_threshold = args.drift_threshold)
     print(drift_result)
     df_output['run_id'] = run_id
