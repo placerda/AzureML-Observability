@@ -108,6 +108,8 @@ def main(args):
     run_prefix= args.base_table_name+"_"+args.target_table_name+"_"
     run_id =run_prefix+ str(ts)
     drift_analysis =Drift_Analysis_User()
+    # create table before querying for the first time
+    data_drift_collector = Online_Collector(args.drift_result_table)    
     #Check if last run exists for pair of table to increase
     target_dt_from = args.target_dt_from
     target_dt_to= args.target_dt_to
@@ -121,7 +123,6 @@ def main(args):
     df_output['run_id'] = run_id
     df_output['base_start_date']=pd.to_datetime(args.base_dt_from)
     df_output['base_end_date']=pd.to_datetime(args.base_dt_to)
-    data_drift_collector = Online_Collector(args.drift_result_table)
     data_drift_collector.batch_collect(df_output)
     feature_distribution = drift_analysis.get_features_distributions(target_table_name=args.target_table_name, target_dt_from=args.target_dt_from, target_dt_to=args.target_dt_to, bin=args.bin)
     feature_distribution['run_id'] = run_id
