@@ -26,23 +26,22 @@ class Drift_Analysis_User(Drift_Analysis):
         if concurrent_run:
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 categorical_output_future = executor.submit(self.analyze_drift_categorical, categorical_columns, time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to,bin, limit)
-                numberical_output_future = executor.submit(self.analyze_drift_numerical,numerical_columns, time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to, bin, limit)
+                numerical_output_future = executor.submit(self.analyze_drift_numerical,numerical_columns, time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to, bin, limit)
                 categorical_output = categorical_output_future.result()
-                numberical_output = numberical_output_future.result()
+                numerical_output = numerical_output_future.result()
         else:
             categorical_output =self.analyze_drift_categorical(categorical_columns, time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to,bin, limit)
-            numberical_output = self.analyze_drift_numerical(numerical_columns, time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to, bin, limit)
+            numerical_output = self.analyze_drift_numerical(numerical_columns, time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to, bin, limit)
         scaler = MinMaxScaler()
         if len(categorical_output) > 0:
             categorical_output.sort_values(['categorical_feature', 'target_start_date'], inplace=True)
             categorical_output['scaled_metric']= categorical_output.groupby(['categorical_feature']).apply(lambda x:scaler.fit_transform(np.array(x.euclidean.values).reshape(-1,1)).flatten()).explode().values
-            numberical_output.sort_values(['numeric_feature', 'target_start_date'], inplace=True)
-            numberical_output['scaled_metric']= numberical_output.groupby(['numeric_feature']).apply(lambda x:scaler.fit_transform(np.array(x.wasserstein.values).reshape(-1,1)).flatten()).explode().values
-            output = pd.concat([categorical_output, numberical_output])
-            drift_result = output.groupby("target_start_date")['scaled_metric'].mean()>drift_threshold
-        else:
-            output = pd.concat([categorical_output, numberical_output])            
-            drift_result = False
+        if len(numerical_output) > 0:
+            numerical_output.sort_values(['numeric_feature', 'target_start_date'], inplace=True)
+            numerical_output['scaled_metric']= numerical_output.groupby(['numeric_feature']).apply(lambda x:scaler.fit_transform(np.array(x.wasserstein.values).reshape(-1,1)).flatten()).explode().values
+        output = pd.concat([categorical_output, numerical_output])
+        drift_result = output.groupby("target_start_date")['scaled_metric'].mean()>drift_threshold
+        
         return output,drift_result
 
     def analyze_drift_v2(self,base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to, bin, limit=None, concurrent_run=True):
@@ -68,25 +67,25 @@ class Drift_Analysis_User(Drift_Analysis):
         if concurrent_run:
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 categorical_output_futures=[]
-                numberical_output_futures =[]
+                numerical_output_futures =[]
 
                 for cat_feature in categorical_columns:
                     categorical_output_future = executor.submit(self.analyze_drift_categorical, [cat_feature], time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to,bin, limit)
                     categorical_output_futures.append(categorical_output_future)
 
                 for num_feature in numerical_columns:
-                    numberical_output_future = executor.submit(self.analyze_drift_numerical,[num_feature], time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to, bin, limit)
-                    numberical_output_futures.append(numberical_output_future)
+                    numerical_output_future = executor.submit(self.analyze_drift_numerical,[num_feature], time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to, bin, limit)
+                    numerical_output_futures.append(numerical_output_future)
 
                 categorical_output = pd.concat([categorical_output_future.result() for categorical_output_future in categorical_output_futures])
-                numberical_output =  pd.concat([numberical_output_future.result() for numberical_output_future in numberical_output_futures]) 
+                numerical_output =  pd.concat([numerical_output_future.result() for numerical_output_future in numerical_output_futures]) 
         else:
             categorical_output =self.analyze_drift_categorical(categorical_columns, time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to,bin, limit)
-            numberical_output = self.analyze_drift_numerical(numerical_columns, time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to, bin, limit)
+            numerical_output = self.analyze_drift_numerical(numerical_columns, time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to, bin, limit)
 
 
 
-        output =numberical_output.merge(categorical_output, how="outer", on = "target_start_date")
+        output =numerical_output.merge(categorical_output, how="outer", on = "target_start_date")
         for metric in ['wasserstein', 'base_min', 'base_max','base_mean','target_min', 'target_max','target_mean', 'euclidean','base_dcount','target_dcount']:
             output[metric]= output[metric].astype("float")
         return output
