@@ -34,7 +34,7 @@ class Drift_Analysis_User(Drift_Analysis):
             numerical_output = self.analyze_drift_numerical(numerical_columns, time_stamp_col, base_table_name,target_table_name, base_dt_from, base_dt_to, target_dt_from, target_dt_to, bin, limit)
         scaler = MinMaxScaler()
         if len(categorical_output) > 0:
-            categorical_output.sort_values(['categorical_feature', 'target_start_date'], inplace=True)
+            categorical_outputxxxx.sort_values(['categorical_feature', 'target_start_date'], inplace=True)
             categorical_output['scaled_metric']= categorical_output.groupby(['categorical_feature']).apply(lambda x:scaler.fit_transform(np.array(x.euclidean.values).reshape(-1,1)).flatten()).explode().values
         else:
             categorical_output['scaled_metric']= 0.0
